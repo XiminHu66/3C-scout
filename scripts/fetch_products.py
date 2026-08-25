@@ -1,0 +1,409 @@
+#!/usr/bin/env python3
+"""Build the static 3C Scout feed from public RSS/Atom sources.
+
+The script intentionally uses only Python's standard library so the scheduled
+GitHub Action stays fast and does not depend on a third-party package mirror.
+"""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import hashlib
+import html
+import json
+import re
+import sys
+import time
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
+from pathlib import Path
+from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT = ROOT / "data" / "products.json"
+NOW = datetime.now(timezone.utc)
+USER_AGENT = "3C-Scout/1.0 (+https://github.com/XiminHu66/3C-scout)"
+
+SOURCES = [
+    # Deal sources
+    {"name": "9to5Toys", "url": "https://9to5toys.com/feed/", "stream": "deals", "language": "en", "trust": 9},
+    {"name": "DealNews", "url": "https://www.dealnews.com/?rss=1", "stream": "deals", "language": "en", "trust": 7},
+    {"name": "The Deal Guy", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5Qbo0AR3CwpmEq751BIy0g", "stream": "deals", "language": "en", "trust": 7},
+    {"name": "Dealmoon / 北美省钱快报", "url": "https://news.google.com/rss/search?q=site%3Adealmoon.com%2Fcn+%28%E6%95%B0%E7%A0%81+OR+%E5%AE%B6%E5%B1%85+OR+%E5%8E%A8%E6%88%BF+OR+%E6%8A%98%E6%89%A3%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 7},
+    {"name": "中文好价搜索", "url": "https://news.google.com/rss/search?q=%28%E5%8C%97%E7%BE%8E+OR+Amazon+OR+Costco%29+%28%E6%95%B0%E7%A0%81+OR+%E5%8E%A8%E6%88%BF+OR+%E5%AE%B6%E5%B1%85%29+%28%E6%8A%98%E6%89%A3+OR+%E5%A5%BD%E4%BB%B7+OR+deal%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 5},
+    # New-product sources
+    {"name": "少数派", "url": "https://sspai.com/feed", "stream": "new", "language": "zh", "trust": 8},
+    {"name": "爱范儿", "url": "https://www.ifanr.com/feed", "stream": "new", "language": "zh", "trust": 8},
+    {"name": "IT之家", "url": "https://www.ithome.com/rss/", "stream": "new", "language": "zh", "trust": 7},
+    {"name": "Engadget", "url": "https://www.engadget.com/rss.xml", "stream": "new", "language": "en", "trust": 8},
+    {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "stream": "new", "language": "en", "trust": 8},
+    {"name": "Product Hunt", "url": "https://www.producthunt.com/feed", "stream": "new", "language": "en", "trust": 6},
+    {"name": "中文新品搜索", "url": "https://news.google.com/rss/search?q=%28%E6%96%B0%E5%93%81+OR+%E5%8F%91%E5%B8%83+OR+%E4%B8%8A%E5%B8%82%29+%28%E6%95%B0%E7%A0%81+OR+%E6%A1%8C%E9%9D%A2+OR+%E9%9F%B3%E9%A2%91+OR+%E5%8E%A8%E6%88%BF+OR+%E5%B0%8F%E7%89%A9%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "new", "language": "zh", "trust": 5},
+]
+
+CATEGORIES = {
+    "音频": ["headphone", "earbud", "airpods", "speaker", "soundbar", "audio", "dac", "microphone", "inzone", "fiio", "耳机", "音箱", "音响", "麦克风", "解码器"],
+    "桌面": ["desk", "desktop", "monitor arm", "hub", "dock", "charger", "charging", "cable", "keyboard", "mouse", "lamp", "fan", "桌面", "显示器支架", "拓展坞", "扩展坞", "充电", "理线", "键盘", "鼠标", "台灯", "风扇", "收纳"],
+    "游戏": ["gaming", "gamepad", "controller", "handheld", "steam deck", "switch", "playstation", "xbox", "hitbox", "arcade", "xreal", "游戏", "掌机", "手柄", "主机", "街机", "摇杆"],
+    "厨房": ["kitchen", "air fryer", "microwave", "coffee", "espresso", "rice cooker", "cookware", "knife", "blender", "oven", "toaster", "厨房", "空气炸锅", "微波炉", "咖啡", "电饭煲", "锅", "刀具", "烤箱", "厨具"],
+    "生活": ["home", "vacuum", "garden", "cleaning", "storage", "organizer", "smart home", "light", "power tool", "power station", "backyard", "e-bike", "electric bike", "hedge trimmer", "tv stand", "costco", "dollar tree", "家居", "生活", "清洁", "吸尘器", "园艺", "后院", "工具", "智能家居", "灯", "置物", "电视柜", "电助力", "电动自行车"],
+    "Maker": ["m5stack", "esp32", "raspberry pi", "arduino", "3d printer", "maker", "solder", "development board", "robot", "开发板", "树莓派", "3d打印", "机器人", "创客", "焊接"],
+    "3C 数码": ["laptop", "computer", "mini pc", "tablet", "ipad", "phone", "iphone", "android", "apple watch", "monitor", "ssd", "hard drive", "nas", "router", "wi-fi", "usb", "power bank", "camera", "e-reader", "kindle", "boox", "电脑", "笔记本", "平板", "手机", "显示器", "硬盘", "路由器", "相机", "阅读器", "数码", "存储", "智能手表"],
+}
+
+PERSONAL_KEYWORDS = [
+    "m5stack", "mini pc", "nas", "ssd", "usb hub", "dock", "charger", "charging station", "desk", "cable management",
+    "headphone", "earbud", "dac", "inzone", "fiio", "sony", "airpods", "steam deck", "handheld", "controller", "hitbox",
+    "xreal", "e-reader", "boox", "kindle", "organizer", "storage", "fan", "air fryer", "microwave", "garden", "smart home",
+    "拓展坞", "充电站", "桌面", "理线", "收纳", "耳机", "掌机", "手柄", "硬盘", "阅读器", "空气炸锅", "微波炉", "后院", "智能家居",
+]
+
+NEW_SIGNALS = ["launch", "announc", "introduc", "unveil", "new ", "debut", "hands-on", "review", "first look", "pre-order", "新品", "发布", "上市", "推出", "上手", "体验", "评测", "首发", "曝光", "亮相", "众筹", "开售", "预售", "首款", "实测"]
+DEAL_SIGNALS = ["deal", "% off", "on sale", "lowest", "discount", "clearance", "coupon", "折扣", "好价", "降价", "立减", "优惠", "低价", "到手", "$", "¥", "￥"]
+MERCHANT_HOSTS = ["amazon.", "bestbuy.", "walmart.", "target.", "costco.", "homedepot.", "lowes.", "ebay.", "woot.", "newegg.", "aliexpress.", "temu.", "jd.com", "taobao.", "tmall.", "suning."]
+OFF_TOPIC_SIGNALS = ["men's clothing", "women's clothing", "sweater", "polo shirt", "work pants", "shoes", "makeup", "skincare", "jewelry", "musician's friend", "sweetwater labor day"]
+
+
+class FragmentParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.text_parts: list[str] = []
+        self.images: list[str] = []
+        self.links: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "img" and values.get("src"):
+            self.images.append(values["src"] or "")
+        if tag == "a" and values.get("href"):
+            self.links.append(values["href"] or "")
+
+    def handle_data(self, data: str) -> None:
+        self.text_parts.append(data)
+
+
+def clean_fragment(raw: str | None) -> tuple[str, list[str], list[str]]:
+    parser = FragmentParser()
+    try:
+        parser.feed(html.unescape(raw or ""))
+    except Exception:
+        pass
+    text = re.sub(r"\s+", " ", " ".join(parser.text_parts)).strip()
+    return text, parser.images, parser.links
+
+
+def local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1].lower()
+
+
+def child_text(element: ET.Element, *names: str) -> str:
+    wanted = {name.lower() for name in names}
+    for child in list(element):
+        if local_name(child.tag) in wanted and child.text:
+            return child.text.strip()
+    return ""
+
+
+def first_link(element: ET.Element) -> str:
+    for child in list(element):
+        if local_name(child.tag) != "link":
+            continue
+        href = child.attrib.get("href", "").strip()
+        rel = child.attrib.get("rel", "alternate")
+        if href and rel in ("alternate", ""):
+            return href
+        if child.text and child.text.strip().startswith("http"):
+            return child.text.strip()
+    return child_text(element, "guid")
+
+
+def parse_date(raw: str) -> datetime:
+    if not raw:
+        return NOW
+    try:
+        parsed = parsedate_to_datetime(raw)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        pass
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return NOW
+
+
+def fetch(url: str, attempts: int = 2) -> bytes:
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"})
+            with urllib.request.urlopen(request, timeout=22) as response:
+                return response.read(6_000_000)
+        except Exception as exc:
+            last_error = exc
+            if attempt + 1 < attempts:
+                time.sleep(1.2)
+    raise RuntimeError(str(last_error))
+
+
+def extract_entries(payload: bytes) -> list[ET.Element]:
+    root = ET.fromstring(payload)
+    entries = [element for element in root.iter() if local_name(element.tag) in {"item", "entry"}]
+    return entries[:45]
+
+
+def source_name(entry: ET.Element, fallback: str) -> str:
+    value = child_text(entry, "source")
+    return re.sub(r"\s+", " ", value).strip() or fallback
+
+
+def entry_media(entry: ET.Element, fragment_images: list[str]) -> str:
+    for element in entry.iter():
+        name = local_name(element.tag)
+        if name in {"thumbnail", "enclosure", "content"}:
+            url = element.attrib.get("url", "")
+            medium = element.attrib.get("medium", "")
+            mime = element.attrib.get("type", "")
+            if url and (name == "thumbnail" or medium == "image" or mime.startswith("image/")):
+                return url
+    return next((url for url in fragment_images if url.startswith("http")), "")
+
+
+def category_for(text: str) -> tuple[str, int]:
+    lowered = text.lower()
+    scored = [(category, sum(2 if len(keyword) > 7 else 1 for keyword in words if keyword in lowered)) for category, words in CATEGORIES.items()]
+    category, score = max(scored, key=lambda pair: pair[1])
+    return (category, score) if score else ("其他", 0)
+
+
+def extract_prices(text: str) -> dict[str, Any]:
+    matches: list[tuple[str, float, int]] = []
+    pattern = re.compile(r"(?P<symbol>US\$|\$|USD\s*|CN¥|RMB\s*|[¥￥])\s*(?P<num>\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)", re.I)
+    for match in pattern.finditer(text):
+        value = float(match.group("num").replace(",", ""))
+        if re.match(r"\s*off\b", text[match.end():match.end() + 9], re.I):
+            continue
+        if 0 < value < 1_000_000:
+            symbol = "¥" if match.group("symbol").lower() in {"cn¥", "rmb", "¥", "￥"} else "$"
+            matches.append((symbol, value, match.start()))
+    current_symbol = matches[0][0] if matches else ""
+    current = matches[0][1] if matches else None
+    original = None
+    if current is not None:
+        same_currency = [value for symbol, value, _ in matches[1:] if symbol == current_symbol and value > current * 1.03]
+        if same_currency:
+            original = max(same_currency)
+
+    discount = 0
+    percent = re.search(r"(?:save\s*)?(\d{1,2})\s*%\s*(?:off)?|(?:减|省)\s*(\d{1,2})\s*%", text, re.I)
+    if percent:
+        discount = int(next(group for group in percent.groups() if group))
+    zhe = re.search(r"(?<!\d)([1-9](?:\.\d)?)\s*折", text)
+    if zhe:
+        discount = max(discount, round(100 - float(zhe.group(1)) * 10))
+    if not discount and current and original:
+        discount = round((1 - current / original) * 100)
+    discount = max(0, min(discount, 95))
+
+    def display(symbol: str, value: float | None) -> str:
+        if value is None:
+            return ""
+        rendered = f"{value:,.2f}".rstrip("0").rstrip(".")
+        return f"{symbol}{rendered}"
+
+    return {
+        "price": display(current_symbol, current),
+        "price_value": current,
+        "original_price": display(current_symbol, original),
+        "discount_percent": discount,
+    }
+
+
+def merchant_link(links: list[str], source_url: str) -> str:
+    for link in links:
+        absolute = urllib.parse.urljoin(source_url, link)
+        host = urllib.parse.urlparse(absolute).netloc.lower()
+        if any(merchant in host for merchant in MERCHANT_HOSTS):
+            return absolute
+    return source_url
+
+
+def reason_for(category: str, personal_hits: list[str], discount: int, stream: str) -> str:
+    if personal_hits:
+        return f"匹配你的偏好：{personal_hits[0]}" + (f"，并有 {discount}% 折扣" if discount else "")
+    if stream == "deals" and discount:
+        return f"{category}分类中折扣力度较高（{discount}%）"
+    if stream == "new":
+        return f"近期发布的{category}相关新品"
+    return f"与你关注的{category}用品相关"
+
+
+def build_item(entry: ET.Element, source: dict[str, Any]) -> dict[str, Any] | None:
+    title, _, title_links = clean_fragment(child_text(entry, "title"))
+    raw_summary = child_text(entry, "description", "summary", "content", "encoded")
+    summary, images, links = clean_fragment(raw_summary)
+    source_url = first_link(entry)
+    if not title or not source_url.startswith("http"):
+        return None
+
+    title_lower = title.lower()
+    combined = f"{title} {summary}".lower()
+    title_category, title_score = category_for(title_lower)
+    body_category, body_score = category_for(combined)
+    category, category_score = (title_category, title_score) if title_score else (body_category, body_score)
+    has_new_signal = any(signal in combined for signal in NEW_SIGNALS)
+    has_new_title_signal = any(signal in title_lower for signal in NEW_SIGNALS)
+    has_deal_signal = any(signal in combined for signal in DEAL_SIGNALS)
+    stream = source["stream"]
+    if stream == "new" and has_deal_signal and not has_new_signal:
+        stream = "deals"
+    elif stream == "deals" and not has_deal_signal and has_new_signal:
+        stream = "new"
+
+    # General tech feeds need a product/category signal. Curated deal feeds may
+    # pass through with a lower score so useful roundups are not lost.
+    if category_score == 0 and not (source["name"] == "The Deal Guy" and stream == "deals"):
+        return None
+    if title_score == 0 and any(signal in title_lower for signal in OFF_TOPIC_SIGNALS):
+        return None
+    if title_score == 0 and body_score < 2 and source["name"] != "The Deal Guy":
+        return None
+    if stream == "new" and not has_new_title_signal and source["name"] not in {"Product Hunt", "少数派"}:
+        return None
+
+    price_text = title if stream == "new" else f"{title} {summary[:260]}"
+    prices = extract_prices(price_text)
+    personal_hits = [keyword for keyword in PERSONAL_KEYWORDS if keyword in combined][:3]
+    published = parse_date(child_text(entry, "pubdate", "published", "updated", "date"))
+    age_hours = max(0, (NOW - published).total_seconds() / 3600)
+    freshness = max(0, 24 - min(age_hours, 24)) / 6
+    relevance = source["trust"] + category_score * 2 + len(personal_hits) * 4 + freshness
+    if stream == "deals":
+        relevance += min(prices["discount_percent"], 60) / 6
+
+    canonical = re.sub(r"\W+", " ", title.lower()).strip()
+    item_id = hashlib.sha1(f"{canonical}|{source_url}".encode("utf-8")).hexdigest()[:16]
+    actual_source = source_name(entry, source["name"])
+    tags = list(dict.fromkeys([category, *personal_hits]))[:4]
+    summary = summary[:360].rstrip()
+    return {
+        "id": item_id,
+        "stream": stream,
+        "title": title[:220],
+        "summary": summary,
+        "category": category,
+        "tags": tags,
+        "language": source["language"],
+        "source": actual_source,
+        "source_url": source_url,
+        "product_url": merchant_link([*links, *title_links], source_url),
+        "image_url": entry_media(entry, images),
+        "published_at": published.isoformat(),
+        "fetched_at": NOW.isoformat(),
+        "relevance_score": round(relevance, 2),
+        "reason": reason_for(category, personal_hits, prices["discount_percent"], stream),
+        "price_note": "抓取自标题或摘要；如有差异，请以商家结账页为准",
+        **prices,
+    }
+
+
+def load_existing() -> dict[str, Any]:
+    try:
+        return json.loads(OUTPUT.read_text(encoding="utf-8"))
+    except Exception:
+        return {"items": [], "sources": []}
+
+
+def canonical_key(item: dict[str, Any]) -> str:
+    title = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", item.get("title", "").lower())
+    return title[:100]
+
+
+def merge_items(fresh: list[dict[str, Any]], existing: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cutoff = NOW - timedelta(days=14)
+    merged: dict[str, dict[str, Any]] = {}
+    for item in [*fresh, *existing]:
+        try:
+            published = parse_date(item.get("published_at", ""))
+        except Exception:
+            continue
+        if published < cutoff:
+            continue
+        key = canonical_key(item) or item.get("id", "")
+        if key and key not in merged:
+            merged[key] = item
+    result = list(merged.values())
+    result.sort(key=lambda item: (item.get("stream") == "deals", item.get("relevance_score", 0), item.get("published_at", "")), reverse=True)
+    deals = [item for item in result if item.get("stream") == "deals"][:72]
+    new = [item for item in result if item.get("stream") == "new"][:72]
+    return new + deals
+
+
+def process_source(index: int, source: dict[str, Any], fixture_dir: Path | None) -> tuple[int, list[dict[str, Any]], dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    error = ""
+    try:
+        if fixture_dir:
+            fixture = fixture_dir / f"{index}.xml"
+            if not fixture.exists():
+                raise FileNotFoundError(f"fixture not found: {fixture.name}")
+            payload = fixture.read_bytes()
+        else:
+            payload = fetch(source["url"])
+        for entry in extract_entries(payload):
+            item = build_item(entry, source)
+            if item:
+                items.append(item)
+    except Exception as exc:
+        error = re.sub(r"\s+", " ", str(exc))[:160]
+        print(f"WARN {source['name']}: {error}", file=sys.stderr)
+    status = {"name": source["name"], "ok": not error, "item_count": len(items), "error": error}
+    return index, items, status
+
+
+def run(fixture_dir: Path | None = None) -> dict[str, Any]:
+    existing = load_existing()
+    fresh: list[dict[str, Any]] = []
+    ordered_statuses: dict[int, dict[str, Any]] = {}
+    worker_count = 1 if fixture_dir else 6
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = [executor.submit(process_source, index, source, fixture_dir) for index, source in enumerate(SOURCES)]
+        for future in concurrent.futures.as_completed(futures):
+            index, items, status = future.result()
+            fresh.extend(items)
+            ordered_statuses[index] = status
+    statuses = [ordered_statuses[index] for index in sorted(ordered_statuses)]
+
+    items = merge_items(fresh, existing.get("items", []))
+    result = {
+        "generated_at": NOW.isoformat(),
+        "retention_days": 14,
+        "items": items,
+        "sources": statuses,
+    }
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fixture-dir", type=Path, help="Read numbered XML fixtures instead of the network")
+    args = parser.parse_args()
+    result = run(args.fixture_dir)
+    successful = sum(1 for source in result["sources"] if source["ok"])
+    print(f"Wrote {len(result['items'])} items from {successful}/{len(result['sources'])} sources to {OUTPUT}")
+
+
+if __name__ == "__main__":
+    main()
