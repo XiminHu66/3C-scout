@@ -34,17 +34,31 @@ SOURCES = [
     # Deal sources
     {"name": "9to5Toys", "url": "https://9to5toys.com/feed/", "stream": "deals", "language": "en", "trust": 9},
     {"name": "DealNews", "url": "https://www.dealnews.com/?rss=1", "stream": "deals", "language": "en", "trust": 7},
+    {"name": "DealNews Editors' Choice", "url": "https://www.dealnews.com/?rss=1&category=editors-choice", "stream": "deals", "language": "en", "trust": 8},
+    {"name": "The Verge Good Deals", "url": "https://www.theverge.com/rss/good-deals/index.xml", "stream": "deals", "language": "en", "trust": 8},
     {"name": "The Deal Guy", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5Qbo0AR3CwpmEq751BIy0g", "stream": "deals", "language": "en", "trust": 7},
-    {"name": "Dealmoon / 北美省钱快报", "url": "https://news.google.com/rss/search?q=site%3Adealmoon.com%2Fcn+%28%E6%95%B0%E7%A0%81+OR+%E5%AE%B6%E5%B1%85+OR+%E5%8E%A8%E6%88%BF+OR+%E6%8A%98%E6%89%A3%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 7},
+    {"name": "Dealmoon 数码好价", "url": "https://news.google.com/rss/search?q=site%3Adealmoon.com%2Fcn+%28%E6%95%B0%E7%A0%81+OR+%E7%94%B5%E5%AD%90+OR+%E8%80%B3%E6%9C%BA+OR+%E7%94%B5%E8%84%91+OR+%E6%B8%B8%E6%88%8F%29+%28%E6%8A%98%E6%89%A3+OR+%E4%BC%98%E6%83%A0+OR+%E5%A5%BD%E4%BB%B7%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 7},
+    {"name": "Dealmoon 家居厨房", "url": "https://news.google.com/rss/search?q=site%3Adealmoon.com%2Fcn+%28%E5%AE%B6%E5%B1%85+OR+%E5%8E%A8%E6%88%BF+OR+%E6%94%B6%E7%BA%B3+OR+%E6%B8%85%E6%B4%81+OR+Costco%29+%28%E6%8A%98%E6%89%A3+OR+%E4%BC%98%E6%83%A0+OR+%E5%A5%BD%E4%BB%B7%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 7},
     {"name": "中文好价搜索", "url": "https://news.google.com/rss/search?q=%28%E5%8C%97%E7%BE%8E+OR+Amazon+OR+Costco%29+%28%E6%95%B0%E7%A0%81+OR+%E5%8E%A8%E6%88%BF+OR+%E5%AE%B6%E5%B1%85%29+%28%E6%8A%98%E6%89%A3+OR+%E5%A5%BD%E4%BB%B7+OR+deal%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "deals", "language": "zh", "trust": 5},
     # New-product sources
     {"name": "少数派", "url": "https://sspai.com/feed", "stream": "new", "language": "zh", "trust": 8},
     {"name": "爱范儿", "url": "https://www.ifanr.com/feed", "stream": "new", "language": "zh", "trust": 8},
     {"name": "IT之家", "url": "https://www.ithome.com/rss/", "stream": "new", "language": "zh", "trust": 7},
+    {"name": "UNWIRE.HK", "url": "https://unwire.hk/feed/", "stream": "new", "language": "zh", "trust": 7},
+    {"name": "Cool3C", "url": "https://www.cool3c.com/rss", "stream": "new", "language": "zh", "trust": 7},
     {"name": "Engadget", "url": "https://www.engadget.com/rss.xml", "stream": "new", "language": "en", "trust": 8},
     {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "stream": "new", "language": "en", "trust": 8},
-    {"name": "Product Hunt", "url": "https://www.producthunt.com/feed", "stream": "new", "language": "en", "trust": 6},
+    {"name": "Tom's Hardware", "url": "https://www.tomshardware.com/feeds/all", "stream": "new", "language": "en", "trust": 7},
+    {"name": "MacRumors", "url": "https://feeds.macrumors.com/MacRumors-All", "stream": "new", "language": "en", "trust": 7},
+    {"name": "9to5Mac", "url": "https://9to5mac.com/feed/", "stream": "new", "language": "en", "trust": 7},
     {"name": "中文新品搜索", "url": "https://news.google.com/rss/search?q=%28%E6%96%B0%E5%93%81+OR+%E5%8F%91%E5%B8%83+OR+%E4%B8%8A%E5%B8%82%29+%28%E6%95%B0%E7%A0%81+OR+%E6%A1%8C%E9%9D%A2+OR+%E9%9F%B3%E9%A2%91+OR+%E5%8E%A8%E6%88%BF+OR+%E5%B0%8F%E7%89%A9%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "new", "language": "zh", "trust": 5},
+    # Discovery sources: concepts, crowdfunding, independent hardware and unusual design
+    {"name": "Product Hunt", "url": "https://www.producthunt.com/feed", "stream": "discover", "language": "en", "trust": 6},
+    {"name": "New Atlas Technology", "url": "https://newatlas.com/technology/index.rss", "stream": "discover", "language": "en", "trust": 7},
+    {"name": "Yanko Design", "url": "https://www.yankodesign.com/feed/", "stream": "discover", "language": "en", "trust": 6},
+    {"name": "The Gadgeteer", "url": "https://the-gadgeteer.com/feed/", "stream": "discover", "language": "en", "trust": 6},
+    {"name": "Crowdfunding Radar", "url": "https://news.google.com/rss/search?q=%28Kickstarter+OR+Indiegogo+OR+crowdfunding%29+%28gadget+OR+hardware+OR+desk+OR+kitchen+OR+smart+home%29&hl=en-US&gl=US&ceid=US%3Aen", "stream": "discover", "language": "en", "trust": 5},
+    {"name": "中文潜力新品", "url": "https://news.google.com/rss/search?q=%28%E4%BC%97%E7%AD%B9+OR+%E6%A6%82%E5%BF%B5%E4%BA%A7%E5%93%81+OR+%E7%8B%AC%E7%AB%8B%E7%A1%AC%E4%BB%B6%29+%28%E6%95%B0%E7%A0%81+OR+%E6%A1%8C%E9%9D%A2+OR+%E5%AE%B6%E5%B1%85+OR+%E5%8E%A8%E6%88%BF%29&hl=zh-CN&gl=US&ceid=US%3Azh-Hans", "stream": "discover", "language": "zh", "trust": 5},
 ]
 
 CATEGORIES = {
@@ -239,6 +253,9 @@ def merchant_link(links: list[str], source_url: str) -> str:
 
 
 def reason_for(category: str, personal_hits: list[str], discount: int, stream: str) -> str:
+    if stream == "discover":
+        match = f"，匹配你的偏好：{personal_hits[0]}" if personal_hits else ""
+        return f"来自设计、众筹或独立硬件渠道的潜力{category}产品{match}"
     if personal_hits:
         return f"匹配你的偏好：{personal_hits[0]}" + (f"，并有 {discount}% 折扣" if discount else "")
     if stream == "deals" and discount:
@@ -278,10 +295,10 @@ def build_item(entry: ET.Element, source: dict[str, Any]) -> dict[str, Any] | No
         return None
     if title_score == 0 and body_score < 2 and source["name"] != "The Deal Guy":
         return None
-    if stream == "new" and not has_new_title_signal and source["name"] not in {"Product Hunt", "少数派"}:
+    if stream == "new" and not has_new_title_signal and source["name"] not in {"少数派"}:
         return None
 
-    price_text = title if stream == "new" else f"{title} {summary[:260]}"
+    price_text = title if stream in {"new", "discover"} else f"{title} {summary[:260]}"
     prices = extract_prices(price_text)
     personal_hits = [keyword for keyword in PERSONAL_KEYWORDS if keyword in combined][:3]
     published = parse_date(child_text(entry, "pubdate", "published", "updated", "date"))
@@ -343,10 +360,11 @@ def merge_items(fresh: list[dict[str, Any]], existing: list[dict[str, Any]]) -> 
         if key and key not in merged:
             merged[key] = item
     result = list(merged.values())
-    result.sort(key=lambda item: (item.get("stream") == "deals", item.get("relevance_score", 0), item.get("published_at", "")), reverse=True)
+    result.sort(key=lambda item: (item.get("relevance_score", 0), item.get("published_at", "")), reverse=True)
     deals = [item for item in result if item.get("stream") == "deals"][:72]
     new = [item for item in result if item.get("stream") == "new"][:72]
-    return new + deals
+    discover = [item for item in result if item.get("stream") == "discover"][:60]
+    return new + deals + discover
 
 
 def process_source(index: int, source: dict[str, Any], fixture_dir: Path | None) -> tuple[int, list[dict[str, Any]], dict[str, Any]]:
@@ -375,7 +393,7 @@ def run(fixture_dir: Path | None = None) -> dict[str, Any]:
     existing = load_existing()
     fresh: list[dict[str, Any]] = []
     ordered_statuses: dict[int, dict[str, Any]] = {}
-    worker_count = 1 if fixture_dir else 6
+    worker_count = 1 if fixture_dir else 8
     with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
         futures = [executor.submit(process_source, index, source, fixture_dir) for index, source in enumerate(SOURCES)]
         for future in concurrent.futures.as_completed(futures):

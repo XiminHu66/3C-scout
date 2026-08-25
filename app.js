@@ -5,7 +5,6 @@ const state = {
   language: "all",
   query: "",
   sort: "score",
-  saved: new Set(JSON.parse(localStorage.getItem("3c-scout-saved") || "[]")),
 };
 
 const ui = {
@@ -21,7 +20,6 @@ const ui = {
   total: document.querySelector("#totalCount"),
   sourceCount: document.querySelector("#sourceCount"),
   dealPeak: document.querySelector("#dealPeak"),
-  savedCount: document.querySelector("#savedCount"),
   freshness: document.querySelector("#freshness"),
   streamNote: document.querySelector("#streamNote"),
   sourceList: document.querySelector("#sourceList"),
@@ -46,8 +44,7 @@ function normalizeText(value) {
 }
 
 function matches(item) {
-  if (state.stream === "saved" && !state.saved.has(item.id)) return false;
-  if (state.stream !== "saved" && item.stream !== state.stream) return false;
+  if (item.stream !== state.stream) return false;
   if (state.category !== "全部" && item.category !== state.category) return false;
   if (state.language !== "all" && item.language !== state.language) return false;
   if (state.query) {
@@ -85,7 +82,6 @@ function addDetailRow(dl, label, value) {
 function renderCard(item) {
   const card = ui.template.content.firstElementChild.cloneNode(true);
   const image = card.querySelector(".product-image");
-  const save = card.querySelector(".save-button");
   const primary = card.querySelector(".primary-link");
   const source = card.querySelector(".source-link");
 
@@ -119,28 +115,11 @@ function renderCard(item) {
   source.href = item.source_url;
   if (!item.product_url || item.product_url === item.source_url) source.hidden = true;
 
-  const syncSaved = () => {
-    const isSaved = state.saved.has(item.id);
-    save.classList.toggle("saved", isSaved);
-    save.textContent = isSaved ? "★" : "☆";
-    save.setAttribute("aria-label", isSaved ? "取消收藏" : "收藏商品");
-  };
-  syncSaved();
-  save.addEventListener("click", () => {
-    if (state.saved.has(item.id)) state.saved.delete(item.id);
-    else state.saved.add(item.id);
-    localStorage.setItem("3c-scout-saved", JSON.stringify([...state.saved]));
-    syncSaved();
-    ui.savedCount.textContent = state.saved.size;
-    if (state.stream === "saved") render();
-  });
   return card;
 }
 
 function renderCategories() {
-  const scope = state.stream === "saved"
-    ? state.data.items.filter((item) => state.saved.has(item.id))
-    : state.data.items.filter((item) => item.stream === state.stream);
+  const scope = state.data.items.filter((item) => item.stream === state.stream);
   const counts = scope.reduce((acc, item) => {
     acc[item.category] = (acc[item.category] || 0) + 1;
     return acc;
@@ -182,7 +161,6 @@ function updateMetrics() {
   ui.total.textContent = state.data.items.length;
   ui.sourceCount.textContent = successfulSources.length;
   ui.dealPeak.textContent = peak ? `${peak}%` : "—";
-  ui.savedCount.textContent = state.saved.size;
   if (state.data.generated_at) {
     const ageHours = (Date.now() - new Date(state.data.generated_at).getTime()) / 36e5;
     ui.freshness.innerHTML = `<i></i>${ageHours > 30 ? "数据等待更新" : "数据已更新"} · ${formatRelativeDate(state.data.generated_at)}`;
@@ -205,7 +183,7 @@ function render() {
   const notes = {
     new: "更偏向发现刚发布、刚上市和设计新鲜的商品",
     deals: "按兴趣相关度、折扣力度和发布时间综合排序",
-    saved: "收藏保存在当前浏览器中，换设备不会自动同步",
+    discover: "众筹、独立硬件与设计实验：寻找下一件可能值得关注的产品",
   };
   ui.streamNote.textContent = notes[state.stream];
 }

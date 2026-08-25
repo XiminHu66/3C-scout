@@ -48,6 +48,22 @@ class FeedParserTests(unittest.TestCase):
         self.assertEqual(item["category"], "游戏")
         self.assertGreater(item["relevance_score"], 10)
 
+    def test_discovery_source_stays_in_discovery_stream(self):
+        payload = b"""<?xml version="1.0"?>
+        <rss version="2.0"><channel><item>
+          <title>Modular USB-C desk hub with e-ink controls</title>
+          <link>https://example.com/discovery/hub</link>
+          <pubDate>Tue, 25 Aug 2026 08:00:00 GMT</pubDate>
+          <description>A crowdfunding concept for a compact desktop dock and charging station.</description>
+        </item></channel></rss>"""
+        entries = fetch_products.extract_entries(payload)
+        source = {"name": "Fixture Discovery", "stream": "discover", "language": "en", "trust": 6}
+        item = fetch_products.build_item(entries[0], source)
+        self.assertIsNotNone(item)
+        self.assertEqual(item["stream"], "discover")
+        self.assertEqual(item["category"], "桌面")
+        self.assertIn("潜力", item["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

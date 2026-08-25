@@ -6,7 +6,9 @@
 - 音频、游戏掌机与外设、Maker 小硬件
 - 厨房用品、生活小物、收纳、清洁与智能家居
 
-网站把内容分为“新商品”和“好 Deal”两条流，提供搜索、分类、中英文筛选、排序、折叠详情和浏览器本地收藏。所有商品保留原始来源链接，识别到商家链接时会额外提供“查看商品”。
+网站把内容分为“新商品”“好 Deal”和“发现”三条流。发现流聚合众筹、独立硬件、设计概念和非主流新品，用来寻找可能感兴趣的下一件产品。页面提供搜索、分类、中英文筛选、排序和折叠详情；所有商品保留原始来源链接，识别到商家链接时会额外提供“查看商品”。
+
+当前来源包括少数派、爱范儿、IT之家、UNWIRE、Cool3C、Engadget、The Verge、Tom's Hardware、MacRumors、9to5Mac、9to5Toys、DealNews、The Deal Guy、Dealmoon 分类搜索、Product Hunt、New Atlas、Yanko Design、The Gadgeteer，以及中英文新品 / 好价 / 众筹主题搜索。
 
 ## 自动更新
 

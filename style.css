@@ -140,8 +140,6 @@ a { color: inherit; }
 .media-fallback::after { width: 32%; height: 32%; background: color-mix(in srgb, var(--signal) 22%, transparent); }
 .media-fallback span { position: relative; z-index: 1; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
 .category-badge { position: absolute; z-index: 2; left: 12px; top: 12px; padding: 6px 9px; border-radius: 7px; background: rgba(20, 21, 17, .86); color: white; backdrop-filter: blur(7px); font: 500 9px "DM Mono", monospace; letter-spacing: .06em; }
-.save-button { position: absolute; z-index: 2; right: 12px; top: 12px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .9); color: #181914; cursor: pointer; font-size: 20px; }
-.save-button.saved { background: var(--signal); }
 .card-body { padding: 18px; }
 .card-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 11px; color: var(--muted); font: 500 9px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .06em; }
 .source-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
