@@ -178,7 +178,10 @@ def extract_entries(payload: bytes) -> list[ET.Element]:
 
 def source_name(entry: ET.Element, fallback: str) -> str:
     value = child_text(entry, "source")
-    return re.sub(r"\s+", " ", value).strip() or fallback
+    value = re.sub(r"\s+", " ", value).strip()
+    if not value or value.startswith(("http://", "https://")):
+        return fallback
+    return value
 
 
 def entry_media(entry: ET.Element, fragment_images: list[str]) -> str:

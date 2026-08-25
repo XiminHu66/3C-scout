@@ -64,6 +64,20 @@ class FeedParserTests(unittest.TestCase):
         self.assertEqual(item["category"], "桌面")
         self.assertIn("潜力", item["reason"])
 
+    def test_url_in_source_field_falls_back_to_configured_source(self):
+        payload = b"""<?xml version="1.0"?>
+        <rss version="2.0"><channel><item>
+          <title>New gaming handheld announced with OLED display</title>
+          <link>https://example.com/new-handheld</link>
+          <source>https://images.example.com/cover.jpg</source>
+          <description>A new portable gaming controller and handheld computer.</description>
+        </item></channel></rss>"""
+        entry = fetch_products.extract_entries(payload)[0]
+        source = {"name": "Hardware Feed", "stream": "new", "language": "en", "trust": 7}
+        item = fetch_products.build_item(entry, source)
+        self.assertIsNotNone(item)
+        self.assertEqual(item["source"], "Hardware Feed")
+
 
 if __name__ == "__main__":
     unittest.main()
