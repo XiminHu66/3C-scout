@@ -62,7 +62,8 @@ function sortedItems() {
     if (state.sort === "newest") return dateValue(b) - dateValue(a);
     if (state.sort === "discount") return (b.discount_percent || 0) - (a.discount_percent || 0) || dateValue(b) - dateValue(a);
     if (state.sort === "price-low") return priceValue(a) - priceValue(b) || dateValue(b) - dateValue(a);
-    return (b.relevance_score || 0) - (a.relevance_score || 0) || dateValue(b) - dateValue(a);
+    const languagePriority = (item) => item.language === "zh" ? 1 : 0;
+    return languagePriority(b) - languagePriority(a) || (b.relevance_score || 0) - (a.relevance_score || 0) || dateValue(b) - dateValue(a);
   });
 }
 
@@ -111,9 +112,10 @@ function renderCard(item) {
   card.querySelector(".detail-content").append(dl);
 
   primary.href = item.product_url || item.source_url;
-  primary.firstChild.textContent = item.product_url && item.product_url !== item.source_url ? "查看商品 " : "查看来源 ";
+  const hasPurchaseLink = item.link_type === "purchase" || (item.product_url && item.product_url !== item.source_url);
+  primary.firstChild.textContent = hasPurchaseLink ? "直接购买 " : "查看原文 ";
   source.href = item.source_url;
-  if (!item.product_url || item.product_url === item.source_url) source.hidden = true;
+  if (!hasPurchaseLink) source.hidden = true;
 
   return card;
 }
@@ -181,9 +183,9 @@ function render() {
     tab.setAttribute("aria-selected", String(active));
   });
   const notes = {
-    new: "更偏向发现刚发布、刚上市和设计新鲜的商品",
-    deals: "按兴趣相关度、折扣力度和发布时间综合排序",
-    discover: "众筹、独立硬件与设计实验：寻找下一件可能值得关注的产品",
+    new: "中文内容优先；更偏向刚发布、刚上市和设计新鲜的商品",
+    deals: "中文内容与直接购买链接优先，再综合兴趣、折扣和发布时间排序",
+    discover: "中文内容优先；从众筹、独立硬件与设计实验中寻找潜力产品",
   };
   ui.streamNote.textContent = notes[state.stream];
 }

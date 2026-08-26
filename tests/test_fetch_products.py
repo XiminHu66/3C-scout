@@ -30,6 +30,7 @@ class FeedParserTests(unittest.TestCase):
         self.assertEqual(item["original_price"], "$99.99")
         self.assertEqual(item["discount_percent"], 30)
         self.assertEqual(item["product_url"], "https://www.amazon.com/dp/TEST")
+        self.assertEqual(item["link_type"], "purchase")
         self.assertEqual(item["image_url"], "https://images.example.com/dock.jpg")
 
     def test_atom_new_product_is_classified(self):
@@ -77,6 +78,53 @@ class FeedParserTests(unittest.TestCase):
         item = fetch_products.build_item(entry, source)
         self.assertIsNotNone(item)
         self.assertEqual(item["source"], "Hardware Feed")
+
+    def test_youtube_roundup_splits_named_purchase_links(self):
+        payload = b"""<?xml version="1.0" encoding="utf-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+          <entry>
+            <title>Top Amazon tech and home deals</title>
+            <link rel="alternate" href="https://www.youtube.com/watch?v=TEST" />
+            <updated>2026-08-25T12:00:00Z</updated>
+            <media:group>
+              <media:thumbnail url="https://images.example.com/video.jpg" />
+              <media:description>MY MUST BUYS:
+$29 USB-C Desktop Hub: https://bit.ly/usb-hub
+AirPods Pro 3: https://bit.ly/airpods
+Air Fryer: https://bit.ly/air-fryer
+Free Audible Trial: https://bit.ly/audible
+Running Shoes: https://bit.ly/shoes</media:description>
+            </media:group>
+          </entry>
+        </feed>"""
+        entry = fetch_products.extract_entries(payload)[0]
+        source = {"name": "Video Deals", "stream": "deals", "language": "en", "trust": 7, "expand_product_links": True}
+        items = fetch_products.build_items(entry, source)
+        self.assertEqual(len(items), 3)
+        self.assertEqual({item["title"] for item in items}, {"$29 USB-C Desktop Hub", "AirPods Pro 3", "Air Fryer"})
+        self.assertTrue(all(item["link_type"] == "purchase" for item in items))
+        self.assertTrue(all(item["source_url"].startswith("https://www.youtube.com/") for item in items))
+        hub = next(item for item in items if "Hub" in item["title"])
+        self.assertEqual(hub["product_url"], "https://bit.ly/usb-hub")
+        self.assertEqual(hub["price"], "$29")
+
+    def test_article_purchase_link_prefers_matching_store_anchor(self):
+        payload = b"""<html><body>
+          <a href="/privacy">Privacy</a>
+          <a href="https://www.amazon.com/dp/WRONG">Shop unrelated cable</a>
+          <a href="https://howl.link/airpods-pro">Buy AirPods Pro 3 at the lowest price</a>
+        </body></html>"""
+        link = fetch_products.purchase_link_from_html(
+            payload,
+            "https://example.com/review/airpods",
+            "AirPods Pro 3 review and deal",
+        )
+        self.assertEqual(link, "https://howl.link/airpods-pro")
+
+    def test_non_store_amazon_subdomain_is_not_a_purchase_link(self):
+        payload = b'<html><a href="https://aws.amazon.com/what-is-cloud-computing">Learn about cloud</a></html>'
+        link = fetch_products.purchase_link_from_html(payload, "https://example.com/article", "AI phone review")
+        self.assertEqual(link, "https://example.com/article")
 
 
 if __name__ == "__main__":
