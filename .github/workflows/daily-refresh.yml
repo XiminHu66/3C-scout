@@ -1,69 +1,34 @@
-name: Refresh products and deploy
-
-on:
+name: Deploy legacy page (canonical PT data)
+'on':
   push:
-    branches: [main]
-  schedule:
-    # 07:15 PST / 08:15 PDT in Seattle. GitHub cron uses UTC.
-    - cron: "15 15 * * *"
-  workflow_dispatch:
-
+    branches:
+    - main
+    paths:
+    - index.html
+    - app.js
+    - '*.css'
+    - web/**
+  workflow_dispatch: {}
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
-
 concurrency:
-  group: 3c-scout-pages
-  cancel-in-progress: true
-
+  group: pages
+  cancel-in-progress: false
 jobs:
-  refresh:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Test feed parser
-        run: python -m unittest discover -s tests -v
-
-      - name: Fetch product feeds
-        run: python scripts/fetch_products.py
-
-      - name: Save refreshed data
-        run: |
-          if git diff --quiet -- data/products.json; then
-            echo "No product data changed"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add data/products.json
-            git commit -m "data: refresh product feed"
-            if ! git push; then
-              echo "::warning::The remote branch changed during this run; deploying the freshly generated local data without another data commit."
-            fi
-          fi
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
   deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: refresh
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - uses: actions/checkout@v4
+    - uses: actions/configure-pages@v5
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: .
+        retention-days: 1
+    - uses: actions/deploy-pages@v4
+      id: deployment

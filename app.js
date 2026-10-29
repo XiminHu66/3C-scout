@@ -1,3 +1,9 @@
+async function fetchCanonicalSnapshot(primary, fallback) {
+  for (const url of [primary, fallback]) {
+    try { const response = await fetch(url, { cache: "no-store" }); if (response.ok) return response; } catch {}
+  }
+  throw new Error("数据暂时无法读取，请稍后重试");
+}
 const state = {
   data: { items: [], sources: [], generated_at: null },
   stream: "new",
@@ -225,7 +231,7 @@ async function init() {
   if (savedTheme) document.documentElement.dataset.theme = savedTheme;
   bindEvents();
   try {
-    const response = await fetch(`data/products.json?v=${Date.now()}`, { cache: "no-store" });
+    const response = await fetchCanonicalSnapshot(`https://ximinhu66.github.io/PT-Universe/apps/3c-scout/data/products.json?v=${Date.now()}`, `data/products.json?v=${Date.now()}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.data = await response.json();
     if (!Array.isArray(state.data.items)) throw new Error("Invalid data format");
@@ -240,3 +246,4 @@ async function init() {
 }
 
 init();
+
